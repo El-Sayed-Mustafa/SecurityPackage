@@ -46,40 +46,43 @@ namespace SecurityLibrary
         public string AnalyseUsingCharFrequency(string cipher)
         {
             var alphabetFreq = "ETAOINSRHLDCUMFPGWYBVKXJQZ".ToLower();
-            var charFrequency = CountCharacterFrequency(cipher);
-            var keyTable = MapCharactersToFrequency(alphabetFreq, charFrequency);
+            var charFrequency = new Dictionary<char, int>();
+            var keyTable = new Dictionary<char, char>();
 
+            cipher = cipher.ToLower();
+
+            CountCharacterFrequencies(cipher, charFrequency);
+
+            // Sort characters by frequency
+            var sortedFreq = charFrequency.OrderByDescending(x => x.Value).Select(x => x.Key);
+            MapCharactersToFrequency(alphabetFreq, keyTable, sortedFreq);
+
+            return GenerateDecipheredText(cipher, keyTable);
+        }
+
+        private static string GenerateDecipheredText(string cipher, Dictionary<char, char> keyTable)
+        {
             return string.Join("", cipher.Select(c => keyTable[c]));
         }
 
-        // Counts character frequencies in the cipher text
-        private Dictionary<char, int> CountCharacterFrequency(string cipher)
+        private static void MapCharactersToFrequency(string alphabetFreq, Dictionary<char, char> keyTable, IEnumerable<char> sortedFreq)
         {
-            var charFrequency = new Dictionary<char, int>();
-            cipher = cipher.ToLower();
+            // Map characters to their corresponding frequency characters in the alphabet
+            for (int i = 0; i < alphabetFreq.Length; i++)
+                keyTable[sortedFreq.ElementAt(i)] = alphabetFreq[i];
+        }
 
-            foreach (var c in cipher)
+        private static void CountCharacterFrequencies(string cipher, Dictionary<char, int> charFrequency)
+        {
+            // Count character frequencies in the cipher text
+            for (int i = cipher.Length - 1; i >= 0; i--)
             {
+                char c = cipher[i];
                 if (!charFrequency.ContainsKey(c))
                     charFrequency[c] = 0;
                 charFrequency[c]++;
             }
-
-            return charFrequency;
         }
-
-        // Maps characters to their corresponding frequency characters in the alphabet
-        private Dictionary<char, char> MapCharactersToFrequency(string alphabetFreq, Dictionary<char, int> charFrequency)
-        {
-            var sortedFreq = charFrequency.OrderByDescending(x => x.Value).Select(x => x.Key);
-            var keyTable = new Dictionary<char, char>();
-
-            for (int i = 0; i < alphabetFreq.Length; i++)
-                keyTable[sortedFreq.ElementAt(i)] = alphabetFreq[i];
-
-            return keyTable;
-        }
-
 
         // Analyzes the key based on plaintext and ciphertext and generates a key table
         public string Analyse(string plainText, string cipherText)
