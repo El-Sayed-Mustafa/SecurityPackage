@@ -1,168 +1,136 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SecurityLibrary
 {
     public class Monoalphabetic : ICryptographicTechnique<string, string>
     {
+        private readonly Ceaser ceaser = new Ceaser();
 
-        public Dictionary<char, char> KeyDictionary(string key, string Operation)// O(1)
+        // Generates a dictionary for encryption or decryption based on the provided key and operation
+        private Dictionary<char, char> GenerateKeyDictionary(string key, string operation)
         {
-            Dictionary<char, char> dic = new Dictionary<char, char>();
-            Ceaser ceaser = new Ceaser();
+            var keyDictionary = new Dictionary<char, char>();
             for (int i = 0; i < 26; i++)
             {
-                if (Operation == "encrypt")
-                    dic.Add(ceaser.Alphabet[i], key[i]);
+                if (operation == "encrypt")
+                    keyDictionary.Add(ceaser.Alphabet[i], key[i]);
                 else
-                    dic.Add(key[i], ceaser.Alphabet[i]);
+                    keyDictionary.Add(key[i], ceaser.Alphabet[i]);
             }
-            return dic;
+            return keyDictionary;
         }
-        public string Analyse(string plainText, string cipherText) // O()
+
+        // Decrypts the cipher text using the provided key
+        public string Decrypt(string cipherText, string key)
         {
-            SortedDictionary<char, char> KeyTable = new SortedDictionary<char, char>();
-            Dictionary<char, bool> alphaList = new Dictionary<char, bool>();
-            int PTLength = plainText.Length;
-            int CTLength = cipherText.Length;
+            var keyTable = GenerateKeyDictionary(key, "decrypt");
+            cipherText = cipherText.ToLower();
+
+            var decryptedText = new string(cipherText.Select(c => keyTable.ContainsKey(c) ? keyTable[c] : c).ToArray());
+            return decryptedText;
+        }
+
+        // Encrypts the plain text using the provided key
+        public string Encrypt(string plainText, string key)
+        {
+            var keyTable = GenerateKeyDictionary(key, "encrypt");
+            plainText = plainText.ToLower();
+
+            var encryptedText = new string(plainText.Select(c => keyTable.ContainsKey(c) ? keyTable[c] : c).ToArray());
+            return encryptedText.ToUpper();
+        }
+
+        // Analyzes the cipher text using character frequency to generate the key
+        public string AnalyseUsingCharFrequency(string cipher)
+        {
+            var alphabetFreq = "ETAOINSRHLDCUMFPGWYBVKXJQZ".ToLower();
+            var charFrequency = CountCharacterFrequency(cipher);
+            var keyTable = MapCharactersToFrequency(alphabetFreq, charFrequency);
+
+            return string.Join("", cipher.Select(c => keyTable[c]));
+        }
+
+        // Counts character frequencies in the cipher text
+        private Dictionary<char, int> CountCharacterFrequency(string cipher)
+        {
+            var charFrequency = new Dictionary<char, int>();
+            cipher = cipher.ToLower();
+
+            foreach (var c in cipher)
+            {
+                if (!charFrequency.ContainsKey(c))
+                    charFrequency[c] = 0;
+                charFrequency[c]++;
+            }
+
+            return charFrequency;
+        }
+
+        // Maps characters to their corresponding frequency characters in the alphabet
+        private Dictionary<char, char> MapCharactersToFrequency(string alphabetFreq, Dictionary<char, int> charFrequency)
+        {
+            var sortedFreq = charFrequency.OrderByDescending(x => x.Value).Select(x => x.Key);
+            var keyTable = new Dictionary<char, char>();
+
+            for (int i = 0; i < alphabetFreq.Length; i++)
+                keyTable[sortedFreq.ElementAt(i)] = alphabetFreq[i];
+
+            return keyTable;
+        }
+
+
+        // Analyzes the key based on plaintext and ciphertext and generates a key table
+        public string Analyse(string plainText, string cipherText)
+        {
             plainText = plainText.ToLower();
             cipherText = cipherText.ToLower();
-            for (int i = 0; i < PTLength; i++) // O(N)
+
+            var keyTable = GenerateKeyTable(plainText, cipherText);
+            CompleteKeyTableIfNeeded(keyTable);
+
+            return string.Join("", keyTable.Values);
+        }
+
+        // Generates the initial key table based on plaintext and ciphertext
+        private SortedDictionary<char, char> GenerateKeyTable(string plainText, string cipherText)
+        {
+            var keyTable = new SortedDictionary<char, char>();
+            var uniqueCharsInCipher = new HashSet<char>();
+
+            // Iterate over plaintext and ciphertext to generate the key table
+            for (int i = 0; i < plainText.Length; i++)
             {
-                if (!KeyTable.ContainsKey(plainText[i])) { KeyTable.Add(plainText[i], cipherText[i]); alphaList.Add(cipherText[i], true); }
-            }
-            if (KeyTable.Count != 26) //O(1)
-            {
-                Ceaser obj = new Ceaser();
-                string alphabet = obj.Alphabet;
-                for (int i = 0; i < 26; i++)
+                if (!keyTable.ContainsKey(plainText[i]))
                 {
-                    if (!KeyTable.ContainsKey(alphabet[i]))
+                    keyTable.Add(plainText[i], cipherText[i]);
+                    uniqueCharsInCipher.Add(cipherText[i]);
+                }
+            }
+
+            return keyTable;
+        }
+
+        // Completes the key table if it's incomplete
+        private void CompleteKeyTableIfNeeded(SortedDictionary<char, char> keyTable)
+        {
+            if (keyTable.Count != 26)
+            {
+                var alphabet = ceaser.Alphabet;
+                var uniqueCharsInCipher = new HashSet<char>(keyTable.Values);
+
+                foreach (var letter in alphabet)
+                {
+                    if (!keyTable.ContainsKey(letter))
                     {
-                        for (int j = 0; j < 26; j++)
-                        {
-                            if (!alphaList.ContainsKey(alphabet[j]))
-                            {
-                                KeyTable.Add(alphabet[i], alphabet[j]);
-                                alphaList.Add(alphabet[j], true);
-                                j = 26;
-                            }
-                        }
+                        var availableChar = alphabet.FirstOrDefault(alpha => !uniqueCharsInCipher.Contains(alpha));
+                        keyTable.Add(letter, availableChar);
+                        uniqueCharsInCipher.Add(availableChar);
                     }
                 }
             }
-
-            string key = "";
-            foreach (var item in KeyTable) // O(1)
-            {
-                key += item.Value;
-            }
-
-            return key;
         }
 
-        public string Decrypt(string cipherText, string key)
-        {
-            Dictionary<char, char> keyTable = KeyDictionary(key, "decrypt");
-            cipherText = cipherText.ToLower();
-            int CTLength = cipherText.Length;
-            string PT = "";
-            for (int i = 0; i < CTLength; i++) // O(N)
-            {
-                if (char.IsLetter(cipherText[i]))
-                    PT += keyTable[cipherText[i]];
-                else
-                    PT += cipherText[i];
-            }
-            return PT;
-
-        }
-
-        public string Encrypt(string plainText, string key)
-        {
-            Dictionary<char, char> keyTable = KeyDictionary(key, "encrypt");
-            int PTLength = plainText.Length;
-            string CT = "";
-            for (int i = 0; i < PTLength; i++) //O(N)
-            {
-                if (char.IsLetter(plainText[i]))
-                    CT += keyTable[plainText[i]];
-                else
-                    CT += plainText[i];
-            }
-
-            return CT.ToUpper();
-        }
-
-        /// <summary>
-        /// Frequency Information:
-        /// E   12.51%
-        /// T	9.25
-        /// A	8.04
-        /// O	7.60
-        /// I	7.26
-        /// N	7.09
-        /// S	6.54
-        /// R	6.12
-        /// H	5.49
-        /// L	4.14
-        /// D	3.99
-        /// C	3.06
-        /// U	2.71
-        /// M	2.53
-        /// F	2.30
-        /// P	2.00
-        /// G	1.96
-        /// W	1.92
-        /// Y	1.73
-        /// B	1.54
-        /// V	0.99
-        /// K	0.67
-        /// X	0.19
-        /// J	0.16
-        /// Q	0.11
-        /// Z	0.09
-        /// </summary>
-        /// <param name="cipher"></param>
-        /// <returns>Plain text</returns>
-        public string AnalyseUsingCharFrequency(string cipher)
-        {
-            string alphabetFreq = "ETAOINSRHLDCUMFPGWYBVKXJQZ".ToLower();
-            Dictionary<char, int> CAlphaFreq = new Dictionary<char, int>();
-            SortedDictionary<char, char> keyTable = new SortedDictionary<char, char>();
-            cipher = cipher.ToLower();
-            int CTLength = cipher.Length;
-            string key = "";
-            for (int i = 0; i < CTLength; i++)
-            {
-                if (!CAlphaFreq.ContainsKey(cipher[i]))
-                {
-                    CAlphaFreq.Add(cipher[i], 0);
-                }
-                else
-                {
-                    CAlphaFreq[cipher[i]]++;
-                }
-            }
-
-            CAlphaFreq = CAlphaFreq.OrderBy(x => x.Value).Reverse().ToDictionary(x => x.Key, x => x.Value);
-            int counter = 0;
-            foreach (var item in CAlphaFreq)
-            {
-                keyTable.Add(item.Key, alphabetFreq[counter]);
-                counter++;
-            }
-
-            for (int i = 0; i < CTLength; i++)
-            {
-                key += keyTable[cipher[i]];
-            }
-
-            return key;
-        }
     }
 }
