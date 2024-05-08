@@ -5,8 +5,9 @@ using System.Collections.Generic;
 
 namespace SecurityPackageTest
 {
+    
     [TestClass]
-    public class DeffieHelmanTest
+    public class DiffieHellmanTest
     {
         [TestMethod]
         public void DeffieHelmanTest1()
