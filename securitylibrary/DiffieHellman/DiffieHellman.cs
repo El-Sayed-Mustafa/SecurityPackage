@@ -1,81 +1,81 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SecurityLibrary.DiffieHellman
 {
     public class DiffieHellman
     {
-        public List<int> GetKeys(int q, int alpha, int xa, int xb)
+        public List<int> GetKeys(int primeModulus, int generator, int privateKeyA, int privateKeyB)
         {
-            double ya, yb;
-            List<int> key = new List<int> { };
-            double temp3, temp4;
+            if (!IsPrime(primeModulus))
+                throw new ArgumentException("Prime modulus must be a prime number.");
 
-            ya = (Pow(alpha, xa, q));
+            List<int> sharedSecrets = new List<int>();
 
-            yb = (Pow(alpha, xb, q));
+            // Calculate public keys
+            int publicKeyA = CalculatePublicKey(generator, privateKeyA, primeModulus);
+            int publicKeyB = CalculatePublicKey(generator, privateKeyB, primeModulus);
 
-            temp3 = (Pow(yb, xa, q));
-            key.Add((int)temp3);
+            // Calculate shared secrets
+            int sharedSecretA = CalculateSharedSecret(publicKeyB, privateKeyA, primeModulus);
+            sharedSecrets.Add(sharedSecretA);
 
+            int sharedSecretB = CalculateSharedSecret(publicKeyA, privateKeyB, primeModulus);
+            sharedSecrets.Add(sharedSecretB);
 
-            temp4 = Pow(ya, xb, q);
-            key.Add((int)temp4);
-
-            return key;
-
+            return sharedSecrets;
         }
-        static int modInverse(int a, int m)
+
+        private int CalculatePublicKey(int generator, int privateKey, int primeModulus)
         {
-            int m0 = m;
-            int y = 0, x = 1;
+            return ModPow(generator, privateKey, primeModulus);
+        }
 
-            if (m == 1)
-                return 0;
+        private int CalculateSharedSecret(int publicKey, int privateKey, int primeModulus)
+        {
+            return ModPow(publicKey, privateKey, primeModulus);
+        }
 
-            while (a > 1)
+        private int ModPow(int number, int exponent, int modulus)
+        {
+            if (exponent < 0)
+                throw new ArgumentException("Exponent must be a non-negative integer.");
+
+            if (modulus <= 0)
+                throw new ArgumentException("Modulus must be a positive integer.");
+
+            long result = 1;
+            long baseNumber = number % modulus;
+
+            while (exponent > 0)
             {
-                // q is quotient 
-                int q = a / m;
+                if (exponent % 2 == 1)
+                    result = (result * baseNumber) % modulus;
 
-                int t = m;
-
-                // m is remainder now, process 
-                // same as Euclid's algo 
-                m = a % m;
-                a = t;
-                t = y;
-
-                // Update x and y 
-                y = x - q * y;
-                x = t;
+                exponent >>= 1;
+                baseNumber = (baseNumber * baseNumber) % modulus;
             }
 
-            // Make x positive 
-            if (x < 0)
-                x += m0;
-
-            return x;
+            return (int)result;
         }
-        public double Pow(double num, int pow, int q)
-        {
-            double result = 1;
 
-            if (pow > 0)
+        private bool IsPrime(int number)
+        {
+            if (number <= 1)
+                return false;
+            if (number <= 3)
+                return true;
+
+            if (number % 2 == 0 || number % 3 == 0)
+                return false;
+
+            for (int i = 5; i * i <= number; i += 6)
             {
-                for (int i = 1; i <= pow; ++i)
-                {
-                    result *= num;
-                    result %= q;
-                }
+                if (number % i == 0 || number % (i + 2) == 0)
+                    return false;
             }
 
-
-            return result;
+            return true;
         }
-
     }
 }

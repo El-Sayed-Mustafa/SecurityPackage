@@ -1,176 +1,162 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace SecurityLibrary.RC4
 {
-    /// <summary>
-    /// If the string starts with 0x.... then it's Hexadecimal not string
-    /// </summary>
     public class RC4 : CryptographicTechnique
     {
         public override string Decrypt(string cipherText, string key)
         {
+            ValidateInputs(cipherText, key);
 
-            bool flag = false;
-            if (cipherText.Substring(0, 2) == "0x")
+            bool isHexadecimal = false;
+            if (cipherText.StartsWith("0x"))
             {
-                cipherText = ConvertHexToAsci(cipherText.Remove(0, 2));
-                key = ConvertHexToAsci(key.Remove(0, 2));
-                flag = true;
-            }
-            int[] S = new int[256];
-            for (int i = 0; i < 256; i++)
-            { S[i] = i; }
-            char[] T = new char[256];
-            char[] kk = new char[cipherText.Length];
-            char[] output = new char[cipherText.Length];
-            int ind = 0; int size = key.Length;
-            for (int i = 0; i < (256 - size); i++)
-            {
-                if (ind >= key.Length)
-                {
-
-                    ind = 0;
-
-                }
-
-                key += key[ind];
-                ind++;
-
-            }
-            T = key.ToCharArray();
-            int j = 0;
-            int temp;
-            for (int i = 0; i < 256; i++)
-            {
-                j = (j + S[i] + T[i]) % 256;
-                temp = S[i];
-                S[i] = S[j];
-                S[j] = temp;
-
-            }
-            j = 0;
-            int I = 0;
-            int t;
-            for (int k = 0; k < cipherText.Length; k++)
-            {
-                I = (I + 1) % 256;
-                j = (j + S[I]) % 256;
-                temp = S[I];
-                S[I] = S[j];
-                S[j] = temp;
-                t = (S[I] + S[j]) % 256;
-                kk[k] = (char)S[t];
-                output[k] = (char)(cipherText[k] ^ kk[k]);
-
+                cipherText = ConvertHexToAscii(cipherText.Substring(2));
+                key = ConvertHexToAscii(key.Substring(2));
+                isHexadecimal = true;
             }
 
-            string res = new string(output);
-            if (flag)
-            {
-                res = ConvertAsciToHex(res);
-                res = "0x" + res;
-            }
-            return res;
+            string result = ProcessData(cipherText, key);
+
+            if (isHexadecimal)
+                result = "0x" + ConvertAsciiToHex(result);
+
+            return result;
         }
-        static public string ConvertHexToAsci(string s)
 
-        {
-
-            string res = "";
-
-            for (int i = 0; i < s.Length; i += 2)
-
-            {
-
-                string cToConv = s.Substring(i, 2);
-
-                int ind = Convert.ToInt32(cToConv, 16);
-
-                char ch = (char)ind;
-
-                res += ch.ToString();
-
-            }
-
-            return res;
-
-        }
-        public static string ConvertAsciToHex(string asci)
-        {
-            StringBuilder br = new StringBuilder();
-            foreach (char c in asci)
-            {
-                br.Append(Convert.ToInt32(c).ToString("X"));
-            }
-            return br.ToString();
-        }
         public override string Encrypt(string plainText, string key)
         {
-            bool flag = false;
-            if (plainText.Substring(0, 2) == "0x")
+            ValidateInputs(plainText, key);
+
+            bool isHexadecimal = false;
+            if (plainText.StartsWith("0x"))
             {
-                plainText = ConvertHexToAsci(plainText.Remove(0, 2));
-                key = ConvertHexToAsci(key.Remove(0, 2));
-                flag = true;
+                plainText = ConvertHexToAscii(plainText.Substring(2));
+                key = ConvertHexToAscii(key.Substring(2));
+                isHexadecimal = true;
             }
-            int[] S = new int[256];
-            for (int i = 0; i < 256; i++)
-            { S[i] = i; }
-            char[] T = new char[256];
-            char[] kk = new char[plainText.Length];
-            char[] output = new char[plainText.Length];
-            int ind = 0; int size = key.Length;
-            for (int i = 0; i < (256 - size); i++)
-            {
-                if (ind >= key.Length)
-                {
 
-                    ind = 0;
+            string result = ProcessData(plainText, key);
 
-                }
+            if (isHexadecimal)
+                result = "0x" + ConvertAsciiToHex(result);
 
-                key += key[ind];
-                ind++;
+            return result;
+        }
 
-            }
-            T = key.ToCharArray();
+        // ProcessData method performs the core RC4 encryption/decryption algorithm
+        private string ProcessData(string data, string key)
+        {
+            // Initialize S-box and arrays
+            int[] sBox = InitializeSBox();
+            char[] tempArray = new char[256];
+            char[] keyStream = new char[data.Length];
+            char[] output = new char[data.Length];
+
             int j = 0;
-            int temp;
-            for (int i = 0; i < 256; i++)
-            {
-                j = (j + S[i] + T[i]) % 256;
-                temp = S[i];
-                S[i] = S[j];
-                S[j] = temp;
+            int keyIndex = 0;
+            int keyLength = key.Length;
 
+            // Initialize T array
+            tempArray = InitializeTArray(ref key, ref keyIndex, keyLength);
+
+            // Key-scheduling algorithm
+            int i = 0;
+            while (i < 256)
+            {
+                j = (j + sBox[i] + tempArray[i]) % 256;
+                Swap(ref sBox[i], ref sBox[j]);
+                i++;
             }
+
             j = 0;
-            int I = 0;
+            int iValue = 0;
             int t;
-            for (int k = 0; k < plainText.Length; k++)
-            {
-                I = (I + 1) % 256;
-                j = (j + S[I]) % 256;
-                temp = S[I];
-                S[I] = S[j];
-                S[j] = temp;
-                t = (S[I] + S[j]) % 256;
-                kk[k] = (char)S[t];
-                output[k] = (char)(plainText[k] ^ kk[k]);
 
+            // Pseudo-random generation algorithm
+            int k = 0;
+            while (k < data.Length)
+            {
+                iValue = (iValue + 1) % 256;
+                j = (j + sBox[iValue]) % 256;
+                Swap(ref sBox[iValue], ref sBox[j]);
+                t = (sBox[iValue] + sBox[j]) % 256;
+                keyStream[k] = (char)sBox[t];
+                output[k] = (char)(data[k] ^ keyStream[k]); // XOR operation
+                k++;
             }
 
-            string res = new string(output);
-            if (flag)
+            return new string(output);
+        }
+
+        private void Swap(ref int a, ref int b)
+        {
+            int temp = a;
+            a = b;
+            b = temp;
+        }
+
+        // InitializeTArray method initializes the temporary array T
+        private static char[] InitializeTArray(ref string key, ref int index, int size)
+        {
+            char[] tempArray;
+            int i = 0;
+            while (i < (256 - size))
             {
-                res = ConvertAsciToHex(res);
-                res = "0x" + res;
+                if (index >= key.Length)
+                    index = 0;
+
+                key += key[index++];
+                i++;
             }
-            return res;
+
+            tempArray = key.ToCharArray();
+            return tempArray;
+        }
+
+        // InitializeSBox method initializes the S-box
+        private static int[] InitializeSBox()
+        {
+            int[] sBox = new int[256];
+            int i = 0;
+            while (i < 256)
+            {
+                sBox[i] = i;
+                i++;
+            }
+            return sBox;
+        }
+
+        // ValidateInputs method checks if input strings are null or empty
+        private void ValidateInputs(string data, string key)
+        {
+            if (string.IsNullOrEmpty(data) || string.IsNullOrEmpty(key))
+                throw new ArgumentException("Input strings cannot be null or empty.");
+        }
+
+        // ConvertHexToAscii method converts hexadecimal string to ASCII
+        private string ConvertHexToAscii(string hex)
+        {
+            StringBuilder asciiBuilder = new StringBuilder();
+            int i = 0;
+            while (i < hex.Length)
+            {
+                string hexPair = hex.Substring(i, 2);
+                int charCode = Convert.ToInt32(hexPair, 16);
+                asciiBuilder.Append((char)charCode);
+                i += 2;
+            }
+            return asciiBuilder.ToString();
+        }
+
+        // ConvertAsciiToHex method converts ASCII string to hexadecimal
+        private string ConvertAsciiToHex(string ascii)
+        {
+            StringBuilder hexBuilder = new StringBuilder();
+            foreach (char c in ascii)
+                hexBuilder.Append(((int)c).ToString("X2"));
+            return hexBuilder.ToString();
         }
     }
 }

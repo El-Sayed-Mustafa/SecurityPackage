@@ -8,60 +8,84 @@ namespace SecurityLibrary.RSA
 {
     public class RSA
     {
-        public int Encrypt(int p, int q, int M, int e)
+        public int Encrypt(int primeP, int primeQ, int message, int publicKey)
         {
-            int n = p * q;
-            int cipher = Pow(M, e, n) % n;
-            return cipher;
+            int modulus = primeP * primeQ;
+            int cipherText = ModularExponentiation(message, publicKey, modulus) % modulus;
+            return cipherText;
         }
 
-        public int Decrypt(int p, int q, int C, int e)
+        public int Decrypt(int primeP, int primeQ, int cipherText, int publicKey)
         {
-            int n2 = p * q;
-            int n = (p - 1) * (q - 1);
-            e = GetMultiplicativeInverse(e, n);
-            int plain = Pow(C, e, n2);
-            return plain;
+            int modulus = primeP * primeQ;
+            int totientN = (primeP - 1) * (primeQ - 1);
+            publicKey = GetMultiplicativeInverse(publicKey, totientN);
+            int plainText = ModularExponentiation(cipherText, publicKey, modulus);
+            return plainText;
         }
 
-        public int Pow(int a, int b, int c)
+        private int ModularExponentiation(int baseNum, int exponent, int modulus)
         {
-            int res = 1;
-            for (int i = 0; i < b; i++)
+            int result = 1;
+            for (int i = 0; i < exponent; i++)
             {
-                res = (res * a) % c;
+                result = (result * baseNum) % modulus;
             }
-            return res;
+            return result;
         }
 
-        public int GetMultiplicativeInverse(int number, int baseN)
+        private int GetMultiplicativeInverse(int number, int modulus)
         {
-            int m = baseN;
-            int a1 = 1;
-            int a2 = 0;
-            int b1 = 0;
-            int b2 = 1;
+            int mValue = modulus;
+            int aValue1 = 1;
+            int aValue2 = 0;
+            int bValue1 = 0;
+            int bValue2 = 1;
+            return CalculateResult(ref number, modulus, ref mValue, ref aValue1, ref aValue2, ref bValue1, ref bValue2);
+        }
 
-            while (number != 0 && number != 1)
-            {
-                int q = m / number;
-                int t1 = a1 - (q * b1);
-                int t2 = a2 - (q * b2);
-                int t3 = m - (q * number);
-                a1 = b1;
-                a2 = b2;
-                m = number;
-                b1 = t1;
-                b2 = t2;
-                number = t3;
-            }
 
-            if (number == 1)
+        private static int CalculateResult(ref int num, int modulus, ref int m, ref int a1, ref int a2, ref int b1, ref int b2)
+        {
+            CalculateExtendedEuclidean(ref num, ref m, ref a1, ref a2, ref b1, ref b2);
+
+            if (num == 1)
             {
-                b2 = b2 < -1 ? b2 + baseN : b2;
+                if (b2 < -1)
+                {
+                    b2 = b2 + modulus;
+                }
                 return b2;
             }
             return -1;
         }
+
+        private static void Swap(ref int a, ref int b)
+        {
+            int temp = a;
+            a = b;
+            b = temp;
+        }
+
+        private static void CalculateExtendedEuclidean(ref int number, ref int m, ref int a1, ref int a2, ref int b1, ref int b2)
+        {
+            for (; number != 0 && number != 1;)
+            {
+                int quotient = m / number;
+                int temp1 = a1 - (quotient * b1);
+                int temp2 = a2 - (quotient * b2);
+                int temp3 = m - (quotient * number);
+
+                // Swap values using the Swap method
+                Swap(ref a1, ref b1);
+                Swap(ref a2, ref b2);
+                Swap(ref m, ref number);
+
+                b1 = temp1;
+                b2 = temp2;
+                number = temp3;
+            }
+        }
+
     }
 }
